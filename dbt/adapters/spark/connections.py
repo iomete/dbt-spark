@@ -33,7 +33,7 @@ import time
 NUMBERS = DECIMALS + (int, float)
 
 
-def _build_odbc_connnection_string(**kwargs) -> str:
+def _build_odbc_connection_string(**kwargs) -> str:
     return ";".join([f"{k}={v}" for k, v in kwargs.items()])
 
 
@@ -41,6 +41,7 @@ class SparkConnectionMethod(StrEnum):
     THRIFT = 'thrift'
     HTTP = 'http'
     ODBC = 'odbc'
+    IOMETE = 'iomete'
 
 
 @dataclass
@@ -53,6 +54,7 @@ class SparkCredentials(Credentials):
     endpoint: Optional[str] = None
     token: Optional[str] = None
     user: Optional[str] = None
+    password: Optional[str] = None
     port: int = 443
     auth: Optional[str] = None
     kerberos_service_name: Optional[str] = None
@@ -70,8 +72,8 @@ class SparkCredentials(Credentials):
     def __post_init__(self):
         # spark classifies database and schema as the same thing
         if (
-            self.database is not None and
-            self.database != self.schema
+                self.database is not None and
+                self.database != self.schema
         ):
             raise dbt.exceptions.RuntimeException(
                 f'    schema: {self.schema} \n'
@@ -90,9 +92,9 @@ class SparkCredentials(Credentials):
             )
 
         if (
-            self.method == SparkConnectionMethod.ODBC and
-            self.cluster and
-            self.endpoint
+                self.method == SparkConnectionMethod.ODBC and
+                self.cluster and
+                self.endpoint
         ):
             raise dbt.exceptions.RuntimeException(
                 "`cluster` and `endpoint` cannot both be set when"
@@ -100,10 +102,11 @@ class SparkCredentials(Credentials):
             )
 
         if (
-            self.method == SparkConnectionMethod.HTTP or
-            self.method == SparkConnectionMethod.THRIFT
+                self.method == SparkConnectionMethod.HTTP or
+                self.method == SparkConnectionMethod.THRIFT or
+                self.method == SparkConnectionMethod.IOMETE
         ) and not (
-            ThriftState and THttpClient and hive
+                ThriftState and THttpClient and hive
         ):
             raise dbt.exceptions.RuntimeException(
                 f"{self.method} connection method requires "
@@ -123,6 +126,7 @@ class SparkCredentials(Credentials):
 
 class PyhiveConnectionWrapper(object):
     """Wrap a Spark connection in a way that no-ops transactions"""
+
     # https://forums.databricks.com/questions/2157/in-apache-spark-sql-can-we-roll-back-the-transacti.html  # noqa
 
     def __init__(self, handle):
@@ -254,7 +258,10 @@ class SparkConnectionManager(SQLConnectionManager):
     SPARK_CLUSTER_HTTP_PATH = "/sql/protocolv1/o/{organization}/{cluster}"
     SPARK_SQL_ENDPOINT_HTTP_PATH = "/sql/1.0/endpoints/{endpoint}"
     SPARK_CONNECTION_URL = (
-        "https://{host}:{port}" + SPARK_CLUSTER_HTTP_PATH
+            "https://{host}:{port}" + SPARK_CLUSTER_HTTP_PATH
+    )
+    SPARK_IOMETE_CONNECTION_URL = (
+        "https://{host}:{port}/cliservice"
     )
 
     @contextmanager
@@ -316,7 +323,21 @@ class SparkConnectionManager(SQLConnectionManager):
 
         for i in range(1 + creds.connect_retries):
             try:
-                if creds.method == SparkConnectionMethod.HTTP:
+                if creds.method == SparkConnectionMethod.IOMETE:
+                    cls.validate_creds(creds, ['host', 'port', 'user', 'password'])
+
+                    conn_url = cls.SPARK_IOMETE_CONNECTION_URL.format(
+                        host=creds.host,
+                        port=creds.port
+                    )
+                    transport = THttpClient.THttpClient(conn_url)
+                    credentials = "%s:%s" % (creds.user, creds.password)
+                    transport.setCustomHeaders(
+                        {"Authorization": "Basic " + base64.b64encode(credentials.encode()).decode().strip()})
+
+                    conn = hive.connect(thrift_transport=transport)
+                    handle = PyhiveConnectionWrapper(conn)
+                elif creds.method == SparkConnectionMethod.HTTP:
                     cls.validate_creds(creds, ['token', 'host', 'port',
                                                'cluster', 'organization'])
 
@@ -376,7 +397,7 @@ class SparkConnectionManager(SQLConnectionManager):
                     user_agent_entry = f"fishtown-analytics-dbt-spark/{dbt_spark_version} (Databricks)"  # noqa
 
                     # https://www.simba.com/products/Spark/doc/v2/ODBC_InstallGuide/unix/content/odbc/options/driver.htm
-                    connection_str = _build_odbc_connnection_string(
+                    connection_str = _build_odbc_connection_string(
                         DRIVER=creds.driver,
                         HOST=creds.host,
                         PORT=creds.port,

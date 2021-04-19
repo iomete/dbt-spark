@@ -146,6 +146,25 @@ your_profile_name:
       connect_timeout: 60
 ```
 
+**IOMETE**
+```
+your_profile_name:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: iomete
+      host: yourorg.sparkhost.com
+      port: 443                         # default
+      schema: analytics
+      username: someuser
+      password: somepassword
+
+      # optional
+      connect_retries: 5
+      connect_timeout: 60
+```
+
 
 ### Usage Notes
 
