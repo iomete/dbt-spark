@@ -55,6 +55,7 @@ class SparkConnectionMethod(StrEnum):
     THRIFT = 'thrift'
     HTTP = 'http'
     ODBC = 'odbc'
+    IOMETE = 'iomete'
 
 
 @dataclass
@@ -67,6 +68,7 @@ class SparkCredentials(Credentials):
     endpoint: Optional[str] = None
     token: Optional[str] = None
     user: Optional[str] = None
+    password: Optional[str] = None
     port: int = 443
     auth: Optional[str] = None
     kerberos_service_name: Optional[str] = None
@@ -121,8 +123,9 @@ class SparkCredentials(Credentials):
             )
 
         if (
-            self.method == SparkConnectionMethod.HTTP or
-            self.method == SparkConnectionMethod.THRIFT
+                self.method == SparkConnectionMethod.HTTP or
+                self.method == SparkConnectionMethod.THRIFT or
+                self.method == SparkConnectionMethod.IOMETE
         ) and not (
             ThriftState and THttpClient and hive
         ):
@@ -283,6 +286,10 @@ class SparkConnectionManager(SQLConnectionManager):
         "{host}:{port}" + SPARK_CLUSTER_HTTP_PATH
     )
 
+    SPARK_IOMETE_CONNECTION_URL = (
+        "https://{host}:{port}/{cluster}/cliservice"
+    )
+
     @contextmanager
     def exception_handler(self, sql):
         try:
@@ -346,7 +353,22 @@ class SparkConnectionManager(SQLConnectionManager):
 
         for i in range(1 + creds.connect_retries):
             try:
-                if creds.method == SparkConnectionMethod.HTTP:
+                if creds.method == SparkConnectionMethod.IOMETE:
+                    cls.validate_creds(creds, ['host', 'port', 'user', 'password'])
+
+                    conn_url = cls.SPARK_IOMETE_CONNECTION_URL.format(
+                        host=creds.host,
+                        port=creds.port,
+                        cluster=creds.cluster
+                    )
+                    transport = THttpClient.THttpClient(conn_url)
+                    credentials = "%s:%s" % (creds.user, creds.password)
+                    transport.setCustomHeaders(
+                        {"Authorization": "Basic " + base64.b64encode(credentials.encode()).decode().strip()})
+
+                    conn = hive.connect(thrift_transport=transport)
+                    handle = PyhiveConnectionWrapper(conn)
+                elif creds.method == SparkConnectionMethod.HTTP:
                     cls.validate_creds(creds, ['token', 'host', 'port',
                                                'cluster', 'organization'])
 
