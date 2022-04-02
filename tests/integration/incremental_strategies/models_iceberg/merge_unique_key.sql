@@ -1,6 +1,7 @@
 {{ config(
     materialized = 'incremental',
-    incremental_strategy = 'insert_overwrite'
+    incremental_strategy = 'merge',
+    unique_key = 'id',
 ) }}
 
 {% if not is_incremental() %}

@@ -1,10 +1,11 @@
 from tests.integration.base import DBTIntegrationTest, use_profile
 
+
 class TestStoreFailures(DBTIntegrationTest):
     @property
     def schema(self):
         return "store_failures"
-        
+
     @property
     def models(self):
         return "models"
@@ -16,6 +17,7 @@ class TestStoreFailures(DBTIntegrationTest):
             'tests': {
                 '+store_failures': True,
                 '+severity': 'warn',
+                '+file_format': 'parquet',
             }
         }
 
@@ -23,13 +25,13 @@ class TestStoreFailures(DBTIntegrationTest):
         self.run_dbt(['run'])
         results = self.run_dbt(['test', '--store-failures'])
 
-class TestStoreFailuresApacheSpark(TestStoreFailures):
 
-    @use_profile("apache_spark")
-    def test_store_failures_apache_spark(self):
+class TestStoreFailures(TestStoreFailures):
+    def test_store_failures(self):
         self.test_store_failures()
-        
-class TestStoreFailuresDelta(TestStoreFailures):
+
+
+class TestStoreFailuresIceberg(TestStoreFailures):
 
     @property
     def project_config(self):
@@ -37,15 +39,9 @@ class TestStoreFailuresDelta(TestStoreFailures):
             'config-version': 2,
             'tests': {
                 '+store_failures': True,
-                '+severity': 'warn',
-                '+file_format': 'delta',
+                '+severity': 'warn'
             }
         }
 
-    @use_profile("databricks_cluster")
-    def test_store_failures_databricks_cluster(self):
-        self.test_store_failures()
-    
-    @use_profile("databricks_sql_endpoint")
-    def test_store_failures_databricks_sql_endpoint(self):
+    def test_store_failures(self):
         self.test_store_failures()

@@ -1,6 +1,6 @@
 {{ config(
     materialized = 'incremental',
-    incremental_strategy = 'insert_overwrite'
+    incremental_strategy = 'append'
 ) }}
 
 {% if not is_incremental() %}

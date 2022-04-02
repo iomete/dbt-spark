@@ -11,7 +11,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from functools import wraps
 
-import pyodbc
 import pytest
 import yaml
 from unittest.mock import patch
@@ -30,7 +29,7 @@ from dbt.events.functions import (
 from dbt.events import AdapterLogger
 from dbt.contracts.graph.manifest import Manifest
 
-logger = AdapterLogger("Spark")
+logger = AdapterLogger("iomete")
 
 INITIAL_ROOT = os.getcwd()
 
@@ -48,6 +47,7 @@ def normalize(path):
     return os.path.normcase(os.path.normpath(path))
 
 
+# unused
 class Normalized:
     def __init__(self, value):
         self.value = value
@@ -62,6 +62,7 @@ class Normalized:
         return normalize(self.value) == normalize(other)
 
 
+# unused
 class FakeArgs:
     def __init__(self):
         self.threads = 1
@@ -83,25 +84,6 @@ class TestArgs:
         self.profiles_dir = None
         self.project_dir = None
         self.__dict__.update(kwargs)
-
-
-def _profile_from_test_name(test_name):
-    adapter_names = ('apache_spark', 'databricks_cluster',
-                     'databricks_sql_endpoint')
-    adapters_in_name = sum(x in test_name for x in adapter_names)
-    if adapters_in_name != 1:
-        raise ValueError(
-            'test names must have exactly 1 profile choice embedded, {} has {}'
-            .format(test_name, adapters_in_name)
-        )
-
-    for adapter_name in adapter_names:
-        if adapter_name in test_name:
-            return adapter_name
-
-    raise ValueError(
-        'could not find adapter name in test name {}'.format(test_name)
-    )
 
 
 def _pytest_test_name():
@@ -138,78 +120,12 @@ class DBTIntegrationTest(unittest.TestCase):
     _randint = random.randint(0, 9999)
     _runtime_timedelta = (datetime.utcnow() - datetime(1970, 1, 1, 0, 0, 0))
     _runtime = (
-        (int(_runtime_timedelta.total_seconds() * 1e6)) +
-        _runtime_timedelta.microseconds
+            (int(_runtime_timedelta.total_seconds() * 1e6)) +
+            _runtime_timedelta.microseconds
     )
 
     prefix = f'test{_runtime}{_randint:04}'
     setup_alternate_db = False
-
-    def apache_spark_profile(self):
-        return {
-            'config': {
-                'send_anonymous_usage_stats': False
-            },
-            'test': {
-                'outputs': {
-                    'thrift': {
-                        'type': 'spark',
-                        'host': 'localhost',
-                        'user': 'dbt',
-                        'method': 'thrift',
-                        'port': 10000,
-                        'connect_retries': 5,
-                        'connect_timeout': 60,
-                        'schema': self.unique_schema()
-                    },
-                },
-                'target': 'thrift'
-            }
-        }
-
-    def databricks_cluster_profile(self):
-        return {
-            'config': {
-                'send_anonymous_usage_stats': False
-            },
-            'test': {
-                'outputs': {
-                    'cluster': {
-                        'type': 'spark',
-                        'method': 'odbc',
-                        'host': os.getenv('DBT_DATABRICKS_HOST_NAME'),
-                        'cluster': os.getenv('DBT_DATABRICKS_CLUSTER_NAME'),
-                        'token': os.getenv('DBT_DATABRICKS_TOKEN'),
-                        'driver': os.getenv('ODBC_DRIVER'),
-                        'port': 443,
-                        'schema': self.unique_schema()
-                    },
-                },
-                'target': 'cluster'
-            }
-        }
-
-    def databricks_sql_endpoint_profile(self):
-        return {
-            'config': {
-                'send_anonymous_usage_stats': False
-            },
-            'test': {
-                'outputs': {
-                    'endpoint': {
-                        'type': 'spark',
-                        'method': 'odbc',
-                        'host': os.getenv('DBT_DATABRICKS_HOST_NAME'),
-                        'endpoint': os.getenv('DBT_DATABRICKS_ENDPOINT'),
-                        'token': os.getenv('DBT_DATABRICKS_TOKEN'),
-                        'driver': os.getenv('ODBC_DRIVER'),
-                        'port': 443,
-                        'schema': self.unique_schema()
-                    },
-                },
-                'target': 'endpoint'
-            }
-        }
 
     @property
     def packages_config(self):
@@ -235,19 +151,28 @@ class DBTIntegrationTest(unittest.TestCase):
     def alternative_database(self):
         return None
 
-    def get_profile(self, adapter_type):
-        if adapter_type == 'apache_spark':
-            return self.apache_spark_profile()
-        elif adapter_type == 'databricks_cluster':
-            return self.databricks_cluster_profile()
-        elif adapter_type == 'databricks_sql_endpoint':
-            return self.databricks_sql_endpoint_profile()
-        else:
-            raise ValueError('invalid adapter type {}'.format(adapter_type))
-
-    def _pick_profile(self):
-        test_name = self.id().split('.')[-1]
-        return _profile_from_test_name(test_name)
+    def get_profile(self):
+        return {
+            'config': {
+                'send_anonymous_usage_stats': False
+            },
+            'test': {
+                'outputs': {
+                    'thrift': {
+                        'type': 'iomete',
+                        'host': 'dwh-910848238944.iomete.com',
+                        'cluster': 'reporting',
+                        'user': 'vusal',
+                        'password': 'Admin_123',
+                        'port': 443,
+                        'connect_retries': 5,
+                        'connect_timeout': 60,
+                        'schema': self.unique_schema()
+                    },
+                },
+                'target': 'thrift'
+            }
+        }
 
     def _symlink_test_folders(self):
         for entry in os.listdir(self.test_original_source_path):
@@ -302,7 +227,7 @@ class DBTIntegrationTest(unittest.TestCase):
         reset_deprecations()
         template_cache.clear()
 
-        self.use_profile(self._pick_profile())
+        self.use_profile()
         self.use_default_project()
         self.set_packages()
         self.set_selectors()
@@ -327,11 +252,9 @@ class DBTIntegrationTest(unittest.TestCase):
         with open("dbt_project.yml", 'w') as f:
             yaml.safe_dump(project_config, f, default_flow_style=True)
 
-    def use_profile(self, adapter_type):
-        self.adapter_type = adapter_type
-
+    def use_profile(self):
         profile_config = {}
-        default_profile_config = self.get_profile(adapter_type)
+        default_profile_config = self.get_profile()
 
         profile_config.update(default_profile_config)
         profile_config.update(self.profile_config)
@@ -443,7 +366,6 @@ class DBTIntegrationTest(unittest.TestCase):
 
         return res
 
-
     def run_dbt_and_capture(self, *args, **kwargs):
         try:
             stringbuf = capture_stdout_logs()
@@ -504,6 +426,8 @@ class DBTIntegrationTest(unittest.TestCase):
 
         sql = self.transform_sql(query, kwargs=kwargs)
 
+        print("sql: ", sql)
+
         with self.get_connection(connection_name) as conn:
             cursor = conn.handle.cursor()
             try:
@@ -515,7 +439,7 @@ class DBTIntegrationTest(unittest.TestCase):
                 else:
                     # we have to fetch.
                     cursor.fetchall()
-            except pyodbc.ProgrammingError as e:
+            except Exception as e:
                 # hacks for dropping schema
                 if "No results.  Previous SQL was not a query." not in str(e):
                     raise e
@@ -531,6 +455,7 @@ class DBTIntegrationTest(unittest.TestCase):
     def _ilike(self, target, value):
         return "{} ilike '{}'".format(target, value)
 
+    # TODO: remove
     def get_many_table_columns_bigquery(self, tables, schema, database=None):
         result = []
         for table in tables:
@@ -540,6 +465,7 @@ class DBTIntegrationTest(unittest.TestCase):
                 result.append((table, col.column, col.dtype, col.char_size))
         return result
 
+    # TODO: remove
     def get_many_table_columns(self, tables, schema, database=None):
         result = self.get_many_table_columns_bigquery(tables, schema, database)
         result.sort(key=lambda x: '{}.{}'.format(x[0], x[1]))
@@ -797,7 +723,6 @@ class DBTIntegrationTest(unittest.TestCase):
                     'num_mismatched nonzero: ' + sql
                 )
 
-
     def _assertTableRowCountsEqual(self, relation_a, relation_b):
         cmp_query = """
             with table_a as (
@@ -817,12 +742,13 @@ class DBTIntegrationTest(unittest.TestCase):
 
         res = self.run_sql(cmp_query, fetch='one')
 
-        self.assertEqual(int(res[0]), 0, "Row count of table {} doesn't match row count of table {}. ({} rows different)".format(
-                relation_a.identifier,
-                relation_b.identifier,
-                res[0]
-            )
-        )
+        self.assertEqual(int(res[0]), 0,
+                         "Row count of table {} doesn't match row count of table {}. ({} rows different)".format(
+                             relation_a.identifier,
+                             relation_b.identifier,
+                             res[0]
+                         )
+                         )
 
     def assertTableDoesNotExist(self, table, schema=None, database=None):
         columns = self.get_table_columns(table, schema, database)
@@ -851,19 +777,19 @@ class DBTIntegrationTest(unittest.TestCase):
             a_name, a_type, a_size = a_column
             b_name, b_type, b_size = b_column
             self.assertEqual(a_name, b_name,
-                '{} vs {}: column "{}" != "{}"'.format(
-                    relation_a, relation_b, a_name, b_name
-                ))
+                             '{} vs {}: column "{}" != "{}"'.format(
+                                 relation_a, relation_b, a_name, b_name
+                             ))
 
             self.assertEqual(a_type, b_type,
-                '{} vs {}: column "{}" has type "{}" != "{}"'.format(
-                    relation_a, relation_b, a_name, a_type, b_type
-                ))
+                             '{} vs {}: column "{}" has type "{}" != "{}"'.format(
+                                 relation_a, relation_b, a_name, a_type, b_type
+                             ))
 
             self.assertEqual(a_size, b_size,
-                '{} vs {}: column "{}" has size "{}" != "{}"'.format(
-                    relation_a, relation_b, a_name, a_size, b_size
-                ))
+                             '{} vs {}: column "{}" has size "{}" != "{}"'.format(
+                                 relation_a, relation_b, a_name, a_size, b_size
+                             ))
 
     def assertEquals(self, *args, **kwargs):
         # assertEquals is deprecated. This makes the warnings less chatty
@@ -877,46 +803,21 @@ class DBTIntegrationTest(unittest.TestCase):
         parsed = datetime.strptime(timestr, datefmt)
 
         self.assertLessEqual(start, parsed,
-            'parsed date {} happened before {}'.format(
-                parsed,
-                start.strftime(datefmt))
-        )
+                             'parsed date {} happened before {}'.format(
+                                 parsed,
+                                 start.strftime(datefmt))
+                             )
         self.assertGreaterEqual(end, parsed,
-            'parsed date {} happened after {}'.format(
-                parsed,
-                end.strftime(datefmt))
-        )
-
-
-def use_profile(profile_name):
-    """A decorator to declare a test method as using a particular profile.
-    Handles both setting the nose attr and calling self.use_profile.
-
-    Use like this:
-
-    class TestSomething(DBIntegrationTest):
-        @use_profile('postgres')
-        def test_postgres_thing(self):
-            self.assertEqual(self.adapter_type, 'postgres')
-
-        @use_profile('snowflake')
-        def test_snowflake_thing(self):
-            self.assertEqual(self.adapter_type, 'snowflake')
-    """
-    def outer(wrapped):
-        @getattr(pytest.mark, 'profile_'+profile_name)
-        @wraps(wrapped)
-        def func(self, *args, **kwargs):
-            return wrapped(self, *args, **kwargs)
-        # sanity check at import time
-        assert _profile_from_test_name(wrapped.__name__) == profile_name
-        return func
-    return outer
+                                'parsed date {} happened after {}'.format(
+                                    parsed,
+                                    end.strftime(datefmt))
+                                )
 
 
 class AnyFloat:
     """Any float. Use this in assertEqual() calls to assert that it is a float.
     """
+
     def __eq__(self, other):
         return isinstance(other, float)
 
@@ -924,6 +825,7 @@ class AnyFloat:
 class AnyString:
     """Any string. Use this in assertEqual() calls to assert that it is a string.
     """
+
     def __eq__(self, other):
         return isinstance(other, str)
 

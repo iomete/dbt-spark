@@ -14,3 +14,4 @@ test/integration/.user.yml
 .vscode
 *.log
 logs/
+/sample-test/

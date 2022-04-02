@@ -31,7 +31,7 @@ with open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf8') as f:
 # get this package's version from dbt/adapters/<name>/__version__.py
 def _get_plugin_version_dict():
     _version_path = os.path.join(
-        this_directory, 'dbt', 'adapters', 'spark', '__version__.py'
+        this_directory, 'dbt', 'adapters', 'iomete', '__version__.py'
     )
     _semver = r'''(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)'''
     _pre = r'''((?P<prekind>a|b|rc)(?P<pre>\d+))?'''
@@ -56,17 +56,10 @@ def _get_dbt_core_version():
     return f"{minor}{pre}"
 
 # TODO remove old logic and add to versionBump script
-package_name = "dbt-spark"
+package_name = "dbt-iomete"
 package_version = "1.0.0"
 dbt_core_version = _get_dbt_core_version()
-description = """The Apache Spark adapter plugin for dbt"""
-
-odbc_extras = ['pyodbc>=4.0.30']
-pyhive_extras = [
-    'PyHive[hive]>=0.6.0,<0.7.0',
-    'thrift>=0.11.0,<0.16.0',
-]
-all_extras = odbc_extras + pyhive_extras
+description = """The Apache Spark (iomete) adapter plugin for dbt"""
 
 setup(
     name=package_name,
@@ -85,12 +78,9 @@ setup(
     install_requires=[
         'dbt-core~={}'.format(dbt_core_version),
         'sqlparams>=3.0.0',
+        'PyHive[hive]>=0.6.0,<0.7.0',
+        'thrift==0.13',
     ],
-    extras_require={
-        "ODBC": odbc_extras,
-        "PyHive":  pyhive_extras,
-        "all": all_extras
-    },
     zip_safe=False,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

@@ -1,6 +1,7 @@
 {{ config(
     materialized = 'incremental',
-    incremental_strategy = 'insert_overwrite'
+    incremental_strategy = 'merge',
+    file_format = 'parquet'
 ) }}
 
 {% if not is_incremental() %}
