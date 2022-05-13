@@ -84,11 +84,14 @@
 {% endmacro %}
 
 {% macro iomete__create_table_as(temporary, relation, sql) -%}
+
   {% if temporary -%}
     {{ create_temporary_view(relation, sql) }}
   {%- else -%}
-    {% if (config.get('file_format', validator=validation.any[basestring]) is none
-        or config.get('file_format', validator=validation.any[basestring]) == 'iceberg') %}
+    {%- set raw_file_format = config.get('file_format', default='iceberg') -%}
+    {% set is_iceberg_file_format = raw_file_format == 'iceberg' %}
+
+    {% if is_iceberg_file_format %}
       create or replace table {{ relation }}
     {% else %}
       create table {{ relation }}
@@ -207,7 +210,10 @@
 {% endmacro %}
 
 {% macro iomete__alter_column_comment(relation, column_dict) %}
-  {% if config.get('file_format', validator=validation.any[basestring]) in ['iceberg'] %}
+  {%- set raw_file_format = config.get('file_format', default='iceberg') -%}
+  {% set is_iceberg_file_format = raw_file_format == 'iceberg' %}
+
+  {% if is_iceberg_file_format %}
     {% for column_name in column_dict %}
       {% set comment = column_dict[column_name]['description'] %}
       {% set escaped_comment = comment | replace('\'', '\\\'') %}

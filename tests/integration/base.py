@@ -205,6 +205,8 @@ class DBTIntegrationTest(unittest.TestCase):
         self.test_original_source_path = _pytest_get_test_root()
         self.test_root_dir = self._generate_test_root_dir()
 
+        print("tai " + self.test_root_dir + "/logs/dbt.log")
+
         os.chdir(self.test_root_dir)
         try:
             self._symlink_test_folders()
@@ -425,8 +427,6 @@ class DBTIntegrationTest(unittest.TestCase):
             return
 
         sql = self.transform_sql(query, kwargs=kwargs)
-
-        print("sql: ", sql)
 
         with self.get_connection(connection_name) as conn:
             cursor = conn.handle.cursor()

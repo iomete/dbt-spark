@@ -28,7 +28,6 @@ class TestPersistDocs(DBTIntegrationTest):
                         "relation": True,
                         "columns": True,
                     },
-                    '+file_format': 'iceberg',
                     '+quote_columns': True
                 }
             },
@@ -39,9 +38,9 @@ class TestPersistDocs(DBTIntegrationTest):
         self.run_dbt(['run'])
 
         for table, whatis in [
-            ('table_delta_model', 'Table'),
+            ('table_iceberg_model', 'Table'),
             ('seed', 'Seed'),
-            ('incremental_delta_model', 'Incremental')
+            ('incremental_iceberg_model', 'Incremental')
         ]:
             results = self.run_sql(
                 'describe extended {schema}.{table}'.format(schema=self.unique_schema(), table=table),

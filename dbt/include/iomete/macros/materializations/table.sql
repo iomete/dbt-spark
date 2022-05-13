@@ -1,5 +1,4 @@
 {% materialization table, adapter = 'iomete' %}
-
   {%- set identifier = model['alias'] -%}
 
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
@@ -11,9 +10,12 @@
   {{ run_hooks(pre_hooks) }}
 
   -- setup: if the target relation already exists, drop it
-  -- in case if the existing and future table is delta, we want to do a
+  -- in case if the existing and future table is iceberg, we want to do a
   -- create or replace table instead of dropping, so we don't have the table unavailable
-  {% if old_relation and not (old_relation.is_delta and config.get('file_format', validator=validation.any[basestring]) == 'delta') -%}
+  {%- set raw_file_format = config.get('file_format', default='iceberg') -%}
+  {% set is_iceberg_file_format = raw_file_format == 'iceberg' %}
+
+  {% if old_relation and not (old_relation.is_iceberg and is_iceberg_file_format) -%}
     {{ adapter.drop_relation(old_relation) }}
   {%- endif %}
 

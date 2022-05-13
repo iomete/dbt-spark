@@ -172,6 +172,7 @@ class SparkAdapter(SQLAdapter):
                 identifier=name,
                 type=rel_type,
                 provider=provider,
+                is_iceberg= provider == "iceberg",
                 describe_table_rows=describe_table_rows
             )
 

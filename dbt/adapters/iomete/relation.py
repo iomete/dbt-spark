@@ -26,6 +26,7 @@ class SparkRelation(BaseRelation):
     include_policy: SparkIncludePolicy = SparkIncludePolicy()
     quote_character: str = '`'
     provider: Optional[str] = None
+    is_iceberg: Optional[bool] = None
     describe_table_rows = None
 
     def __post_init__(self):

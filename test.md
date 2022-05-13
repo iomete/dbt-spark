@@ -16,19 +16,9 @@ jdbc:hive2://dwh-910848238944.iomete.com/;transportMode=http;ssl=true;httpPath=r
 
 ```shell
 tox -e integration-iomete
-
-tox -e integration-spark-thrift
-tox -e integration-spark-databricks-http
 ```
 
 ## Run unit tests
 ```shell
-TOXENV: "unit"
-PYTEST_ADDOPTS: "-v --color=yes --csv unit_results.csv"
-
-tox
-
-----
-
 tox -e unit
 ```

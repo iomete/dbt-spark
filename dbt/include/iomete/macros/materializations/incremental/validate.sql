@@ -37,8 +37,6 @@
 
   {% set is_iceberg_file_format = file_format is not defined or file_format == 'iceberg' %}
 
-  {{ log("is_iceberg_file_format: " ~ is_iceberg_file_format ~ ", " ~ file_format) }}
-
   {% if raw_strategy not in ['append', 'merge', 'insert_overwrite'] %}
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
   {%-else %}

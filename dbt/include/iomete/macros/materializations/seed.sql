@@ -1,5 +1,5 @@
 {% macro iomete__get_binding_char() %}
-  {{ return('?' if target.method == 'odbc' else '%s') }}
+  {{ return '%s' }}
 {% endmacro %}
 
 
