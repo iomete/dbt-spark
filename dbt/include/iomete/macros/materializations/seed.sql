@@ -1,5 +1,5 @@
 {% macro iomete__get_binding_char() %}
-  {{ return '%s' }}
+  {{ return ('%s') }}
 {% endmacro %}
 
 

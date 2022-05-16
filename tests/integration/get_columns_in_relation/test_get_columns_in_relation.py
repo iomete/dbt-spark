@@ -1,4 +1,4 @@
-from tests.integration.base import DBTIntegrationTest, use_profile
+from tests.integration.base import DBTIntegrationTest
 
 
 class TestGetColumnInRelationInSameRun(DBTIntegrationTest):

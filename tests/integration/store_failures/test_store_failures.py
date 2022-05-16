@@ -1,4 +1,4 @@
-from tests.integration.base import DBTIntegrationTest, use_profile
+from tests.integration.base import DBTIntegrationTest
 
 
 class TestStoreFailures(DBTIntegrationTest):
@@ -23,12 +23,7 @@ class TestStoreFailures(DBTIntegrationTest):
 
     def test_store_failures(self):
         self.run_dbt(['run'])
-        results = self.run_dbt(['test', '--store-failures'])
-
-
-class TestStoreFailures(TestStoreFailures):
-    def test_store_failures(self):
-        self.test_store_failures()
+        self.run_dbt(['test', '--store-failures'])
 
 
 class TestStoreFailuresIceberg(TestStoreFailures):
@@ -43,5 +38,5 @@ class TestStoreFailuresIceberg(TestStoreFailures):
             }
         }
 
-    def test_store_failures(self):
+    def test_store_failures_iceberg(self):
         self.test_store_failures()
