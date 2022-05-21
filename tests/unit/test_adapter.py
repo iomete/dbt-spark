@@ -283,3 +283,105 @@ class TestSparkAdapter(unittest.TestCase):
         }
         with self.assertRaises(RuntimeException):
             config_from_parts_or_dicts(self.project_cfg, profile)
+
+    def test_parse_relation_from_cache(self):
+        self.maxDiff = None
+        # Mimics the output of Spark with a DESCRIBE TABLE EXTENDED
+
+        plain_rows = [
+            ('col1', 'decimal(22,0)'),
+            ('col2', 'string',),
+            ('dt', 'date'),
+            ('struct_col', 'struct<struct_inner_col:string>'),
+            ('# Partition Information', 'data_type'),
+            ('# col_name', 'data_type'),
+            ('dt', 'date'),
+            (None, None),
+            ('# Detailed Table Information', None),
+            ('Database', None),
+            ('Owner', 'root'),
+            ('Created Time', 'Wed Feb 04 18:15:00 UTC 1815'),
+            ('Last Access', 'Wed May 20 19:25:00 UTC 1925'),
+            ('Type', 'MANAGED'),
+            ('Provider', 'parquet'),
+            ('Location', '/mnt/vo'),
+            ('Serde Library', 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'),
+            ('InputFormat', 'org.apache.hadoop.mapred.SequenceFileInputFormat'),
+            ('OutputFormat', 'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat'),
+            ('Partition Provider', 'Catalog')
+        ]
+
+        input_cols = [Row(keys=['col_name', 'data_type'], values=r)
+                      for r in plain_rows]
+
+        describe_table_rows = [dict(zip(row._keys, row._values)) for row in input_cols]
+
+        rel_type = SparkRelation.get_relation_type.Table
+
+        relation = SparkRelation.create(
+            schema='default_schema',
+            identifier='mytable',
+            type=rel_type,
+            describe_table_rows=describe_table_rows,
+            is_iceberg="iceberg"
+        )
+
+        config = self._get_target_http(self.project_cfg)
+        rows = SparkAdapter(config).parse_describe_extended_from_describe_table_rows(
+            relation, relation.describe_table_rows)
+        self.assertEqual(len(rows), 4)
+        self.assertEqual(rows[0].to_column_dict(omit_none=False), {
+            'table_database': None,
+            'table_schema': relation.schema,
+            'table_name': relation.name,
+            'table_type': rel_type,
+            'table_owner': 'root',
+            'column': 'col1',
+            'column_index': 0,
+            'dtype': 'decimal(22,0)',
+            'numeric_scale': None,
+            'numeric_precision': None,
+            'char_size': None
+        })
+
+        self.assertEqual(rows[1].to_column_dict(omit_none=False), {
+            'table_database': None,
+            'table_schema': relation.schema,
+            'table_name': relation.name,
+            'table_type': rel_type,
+            'table_owner': 'root',
+            'column': 'col2',
+            'column_index': 1,
+            'dtype': 'string',
+            'numeric_scale': None,
+            'numeric_precision': None,
+            'char_size': None
+        })
+
+        self.assertEqual(rows[2].to_column_dict(omit_none=False), {
+            'table_database': None,
+            'table_schema': relation.schema,
+            'table_name': relation.name,
+            'table_type': rel_type,
+            'table_owner': 'root',
+            'column': 'dt',
+            'column_index': 2,
+            'dtype': 'date',
+            'numeric_scale': None,
+            'numeric_precision': None,
+            'char_size': None
+        })
+
+        self.assertEqual(rows[3].to_column_dict(omit_none=False), {
+            'table_database': None,
+            'table_schema': relation.schema,
+            'table_name': relation.name,
+            'table_type': rel_type,
+            'table_owner': 'root',
+            'column': 'struct_col',
+            'column_index': 3,
+            'dtype': 'struct<struct_inner_col:string>',
+            'numeric_scale': None,
+            'numeric_precision': None,
+            'char_size': None
+        })

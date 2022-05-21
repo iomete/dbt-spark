@@ -27,7 +27,7 @@ class SparkRelation(BaseRelation):
     quote_character: str = '`'
     provider: Optional[str] = None
     is_iceberg: Optional[bool] = None
-    describe_table_rows = None
+    describe_table_rows: str = None
 
     def __post_init__(self):
         if self.database != self.schema and self.database:
