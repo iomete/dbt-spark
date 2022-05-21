@@ -195,34 +195,8 @@ class SparkAdapter(SQLAdapter):
     ) -> List[SparkColumn]:
         # Convert the Row to a dict
         dict_rows = [dict(zip(row._keys, row._values)) for row in raw_rows]
-        # Find the separator between the rows and the metadata provided
-        # by the DESCRIBE TABLE EXTENDED statement
-        pos = self.find_table_information_separator(dict_rows)
 
-        # Remove rows that start with a hash, they are comments
-        rows = [
-            row for row in raw_rows[0:pos]
-            if not row['col_name'].startswith('#')
-        ]
-
-        metadata_position = self.find_table_metadata_separator(raw_rows)
-        metadata = {
-            col['col_name']: col['data_type'] for col in raw_rows[metadata_position + 1:]
-        }
-
-        raw_table_stats = metadata.get(KEY_TABLE_STATISTICS)
-        table_stats = SparkColumn.convert_table_stats(raw_table_stats)
-        return [SparkColumn(
-            table_database=None,
-            table_schema=relation.schema,
-            table_name=relation.name,
-            table_type=relation.type,
-            table_owner=str(metadata.get(KEY_TABLE_OWNER)),
-            table_stats=table_stats,
-            column=column['col_name'],
-            column_index=idx,
-            dtype=column['data_type'],
-        ) for idx, column in enumerate(rows)]
+        return self.parse_describe_extended_from_describe_table_rows(relation, dict_rows)
 
     def parse_describe_extended_from_describe_table_rows(
             self,
@@ -283,20 +257,32 @@ class SparkAdapter(SQLAdapter):
         return None
 
     def get_columns_in_relation(self, relation: Relation) -> List[SparkColumn]:
-        cached_relations = self.cache.get_relations(
-            relation.database, relation.schema)
-        cached_relation = next((cached_relation
-                                for cached_relation in cached_relations
-                                if str(cached_relation) == str(relation)),
-                               None)
+        cached_relations = self.cache.get_relations(relation.database, relation.schema)
+        cached_relation = next(
+            (
+                cached_relation
+                for cached_relation in cached_relations
+                if str(cached_relation) == str(relation)
+            ),
+            None,
+        )
         columns = []
         if cached_relation and cached_relation.describe_table_rows:
             columns = self.parse_describe_extended_from_describe_table_rows(
                 cached_relation, cached_relation.describe_table_rows
             )
         if not columns:
-            rows: List[agate.Row] = super().get_columns_in_relation(relation)
-            columns = self.parse_describe_extended(relation, rows)
+            try:
+                rows: List[agate.Row] = super().get_columns_in_relation(relation)
+                columns = self.parse_describe_extended(relation, rows)
+            except dbt.exceptions.RuntimeException as e:
+                # spark would throw error when table doesn't exist, where other
+                # CDW would just return and empty list, normalizing the behavior here
+                errmsg = getattr(e, "msg", "")
+                if "Table or view not found" in errmsg or "NoSuchTableException" in errmsg:
+                    pass
+                else:
+                    raise e
 
         return columns
 
