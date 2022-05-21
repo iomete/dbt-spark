@@ -160,10 +160,10 @@ class DBTIntegrationTest(unittest.TestCase):
                 'outputs': {
                     'thrift': {
                         'type': 'iomete',
-                        'host': 'dwh-910848238944.iomete.com',
-                        'cluster': 'reporting',
-                        'user': 'vusal',
-                        'password': 'Admin_123',
+                        'host': os.getenv('DBT_IOMETE_HOST_NAME'),
+                        'cluster': os.getenv('DBT_IOMETE_CLUSTER_NAME'),
+                        'user': os.getenv('DBT_IOMETE_USER_NAME'),
+                        'password': os.getenv('DBT_IOMETE_PASSWORD'),
                         'port': 443,
                         'connect_retries': 5,
                         'connect_timeout': 60,

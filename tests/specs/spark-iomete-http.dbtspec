@@ -1,9 +1,9 @@
 target:
   type: iomete
-  host: "dwh-910848238944.iomete.com"
-  cluster: "reporting"
-  user: vusal
-  password: "Admin_123"
+  host: "{{ env_var('DBT_IOMETE_HOST_NAME') }}"
+  cluster: "{{ env_var('DBT_IOMETE_CLUSTER_NAME') }}"
+  user: "{{ env_var('DBT_IOMETE_USER_NAME') }}"
+  password: "{{ env_var('DBT_IOMETE_PASSWORD') }}"
   port: 443
   schema: "analytics_{{ var('_dbt_random_suffix') }}"
   connect_retries: 5
