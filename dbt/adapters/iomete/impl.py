@@ -224,6 +224,39 @@ class SparkAdapter(SQLAdapter):
             dtype=column['data_type'],
         ) for idx, column in enumerate(rows)]
 
+    def parse_describe_extended_from_describe_table_rows(
+            self,
+            relation: Relation,
+            describe_table_rows: List[dict]
+    ) -> List[SparkColumn]:
+
+        pos = self.find_table_information_separator(describe_table_rows)
+
+        # Remove rows that start with a hash, they are comments
+        rows = [
+            row for row in describe_table_rows[0:pos]
+            if not row['col_name'].startswith('#')
+        ]
+
+        metadata_position = self.find_table_metadata_separator(describe_table_rows)
+        metadata = {
+            col['col_name']: col['data_type'] for col in describe_table_rows[metadata_position + 1:]
+        }
+
+        raw_table_stats = metadata.get(KEY_TABLE_STATISTICS)
+        table_stats = SparkColumn.convert_table_stats(raw_table_stats)
+        return [SparkColumn(
+            table_database=None,
+            table_schema=relation.schema,
+            table_name=relation.name,
+            table_type=relation.type,
+            table_owner=str(metadata.get(KEY_TABLE_OWNER)),
+            table_stats=table_stats,
+            column=column['col_name'],
+            column_index=idx,
+            dtype=column['data_type'],
+        ) for idx, column in enumerate(rows)]
+
     @staticmethod
     def find_table_information_separator(rows: List[dict]) -> int:
         pos = 0
@@ -250,8 +283,22 @@ class SparkAdapter(SQLAdapter):
         return None
 
     def get_columns_in_relation(self, relation: Relation) -> List[SparkColumn]:
-        rows = super().get_columns_in_relation(relation)
-        return self.parse_describe_extended(relation, rows)
+        cached_relations = self.cache.get_relations(
+            relation.database, relation.schema)
+        cached_relation = next((cached_relation
+                                for cached_relation in cached_relations
+                                if str(cached_relation) == str(relation)),
+                               None)
+        columns = []
+        if cached_relation and cached_relation.describe_table_rows:
+            columns = self.parse_describe_extended_from_describe_table_rows(
+                cached_relation, cached_relation.describe_table_rows
+            )
+        if not columns:
+            rows: List[agate.Row] = super().get_columns_in_relation(relation)
+            columns = self.parse_describe_extended(relation, rows)
+
+        return columns
 
     def _get_columns_for_catalog(
             self, relation: SparkRelation
