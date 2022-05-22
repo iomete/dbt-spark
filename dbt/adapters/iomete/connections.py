@@ -6,7 +6,6 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import ConnectionState, AdapterResponse
 from dbt.events import AdapterLogger
 from dbt.utils import DECIMALS
-from dbt.adapters.iomete import __version__
 
 try:
     from TCLIService.ttypes import TOperationState as ThriftState
@@ -21,9 +20,7 @@ try:
 except ImportError:
     pyodbc = None
 from datetime import datetime
-import sqlparams
 
-from hologram.helpers import StrEnum
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 try:
@@ -45,10 +42,6 @@ import time
 logger = AdapterLogger("Spark")
 
 NUMBERS = DECIMALS + (int, float)
-
-
-def _build_odbc_connnection_string(**kwargs) -> str:
-    return ";".join([f"{k}={v}" for k, v in kwargs.items()])
 
 
 @dataclass
@@ -94,7 +87,7 @@ class SparkCredentials(Credentials):
         return self.host
 
     def _connection_keys(self):
-        return ('host', 'port', 'cluster', 'schema')
+        return 'host', 'port', 'cluster', 'schema'
 
 
 class PyhiveConnectionWrapper(object):
@@ -208,21 +201,6 @@ class PyhiveConnectionWrapper(object):
     @property
     def description(self):
         return self._cursor.description
-
-
-class PyodbcConnectionWrapper(PyhiveConnectionWrapper):
-
-    def execute(self, sql, bindings=None):
-        if sql.strip().endswith(";"):
-            sql = sql.strip()[:-1]
-        # pyodbc does not handle a None type binding!
-        if bindings is None:
-            self._cursor.execute(sql)
-        else:
-            # pyodbc only supports `qmark` sql params!
-            query = sqlparams.SQLParams('format', 'qmark')
-            sql, bindings = query.format(sql, bindings)
-            self._cursor.execute(sql, *bindings)
 
 
 class SparkConnectionManager(SQLConnectionManager):
@@ -346,6 +324,7 @@ class SparkConnectionManager(SQLConnectionManager):
         connection.handle = handle
         connection.state = ConnectionState.OPEN
         return connection
+
 
 def _is_retryable_error(exc: Exception) -> Optional[str]:
     message = getattr(exc, 'message', None)

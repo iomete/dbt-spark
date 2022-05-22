@@ -1,4 +1,3 @@
-import re
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any, Union, Iterable
@@ -23,8 +22,6 @@ logger = AdapterLogger("iomete")
 
 GET_COLUMNS_IN_RELATION_MACRO_NAME = 'get_columns_in_relation'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
-LIST_RELATIONS_MACRO_NAME = 'list_relations_without_caching'
-DROP_RELATION_MACRO_NAME = 'drop_relation'
 FETCH_TBL_PROPERTIES_MACRO_NAME = 'fetch_tbl_properties'
 
 KEY_TABLE_OWNER = 'Owner'
@@ -43,34 +40,6 @@ class SparkConfig(AdapterConfig):
 
 
 class SparkAdapter(SQLAdapter):
-    COLUMN_NAMES = (
-        'table_database',
-        'table_schema',
-        'table_name',
-        'table_type',
-        'table_comment',
-        'table_owner',
-        'column_name',
-        'column_index',
-        'column_type',
-        'column_comment',
-
-        'stats:bytes:label',
-        'stats:bytes:value',
-        'stats:bytes:description',
-        'stats:bytes:include',
-
-        'stats:rows:label',
-        'stats:rows:value',
-        'stats:rows:description',
-        'stats:rows:include',
-    )
-    INFORMATION_COLUMNS_REGEX = re.compile(
-        r"^ \|-- (.*): (.*) \(nullable = (.*)\b", re.MULTILINE)
-    INFORMATION_OWNER_REGEX = re.compile(r"^Owner: (.*)$", re.MULTILINE)
-    INFORMATION_STATISTICS_REGEX = re.compile(
-        r"^Statistics: (.*)$", re.MULTILINE)
-
     Relation = SparkRelation
     Column = SparkColumn
     ConnectionManager = SparkConnectionManager

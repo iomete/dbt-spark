@@ -1,3 +1,13 @@
+# Testing dbt-iomete-spark
+
+
+## Set environment variables
+```bash
+export DBT_IOMETE_HOST_NAME=iomete_host_name
+export DBT_IOMETE_CLUSTER_NAME=iomete_cluster_name
+export DBT_IOMETE_USER_NAME=iomete_user_name
+export DBT_IOMETE_PASSWORD=password
+```
 
 ## Run sample dbt
 

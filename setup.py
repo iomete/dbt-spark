@@ -69,9 +69,9 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
 
-    author='dbt Labs',
-    author_email='info@dbtlabs.com',
-    url='https://github.com/dbt-labs/dbt-spark',
+    author='iomete',
+    author_email='support@iomete.com',
+    url='https://github.com/iomete/dbt-spark',
 
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     include_package_data=True,
